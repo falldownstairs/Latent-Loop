@@ -1,0 +1,11 @@
+flask
+flask-cors
+groq
+fastembed
+chromadb
+python-dotenv
+colorama
+pyaudio
+webrtcvad
+numpy
+google-generativeai

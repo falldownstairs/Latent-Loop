@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latent Loop - Recursive Note-Taking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        code, pre, .markdown-content code { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6a6a8a; }
+        
+        /* Transcript fade effect */
+        .transcript-item {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Line highlight pulse animation */
+        .line-pulse {
+            animation: linePulse 2s ease-out;
+        }
+        
+        @keyframes linePulse {
+            0% { 
+                background: linear-gradient(90deg, rgba(245, 158, 11, 0.4), rgba(139, 92, 246, 0.4));
+                box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+            }
+            100% { 
+                background: transparent;
+                box-shadow: none;
+            }
+        }
+        
+        /* Section highlight */
+        .section-updated {
+            animation: sectionGlow 2s ease-out;
+        }
+        
+        @keyframes sectionGlow {
+            0% { border-color: #8b5cf6; box-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
+            100% { border-color: #374151; box-shadow: none; }
+        }
+        
+        /* Recording indicator */
+        .recording-indicator {
+            animation: recordPulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes recordPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        /* Pending update card */
+        .pending-card {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* Markdown content styling */
+        .markdown-content h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 1rem; color: #60a5fa; }
+        .markdown-content h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #a78bfa; }
+        .markdown-content h3 { font-size: 1.1rem; font-weight: 500; margin-top: 1rem; margin-bottom: 0.5rem; color: #f472b6; }
+        .markdown-content p { margin-bottom: 0.75rem; color: #d1d5db; }
+        .markdown-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        .markdown-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        .markdown-content li { margin-bottom: 0.25rem; color: #d1d5db; }
+        .markdown-content code { background: #1f2937; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; }
+        .markdown-content pre { background: #1f2937; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; }
+        .markdown-content em { color: #9ca3af; font-style: italic; }
+        .markdown-content strong { color: #f9fafb; font-weight: 600; }
+        .markdown-content del { color: #ef4444; text-decoration: line-through; }
+        
+        /* Line numbers */
+        .line-number {
+            color: #4b5563;
+            user-select: none;
+            text-align: right;
+            padding-right: 1rem;
+            min-width: 2.5rem;
+        }
+    </style>
+</head>
+<body class="bg-[#0a0a0f] text-white min-h-screen">
+    
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-gray-800/50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold gradient-text">Latent Loop</h1>
+                <span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">Single Source</span>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <!-- Status indicators -->
+                <div id="status-groq" class="flex items-center gap-2 text-sm text-gray-400">
+                    <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+                    <span>Whisper</span>
+                </div>
+                <div id="status-gemini" class="flex items-center gap-2 text-sm text-gray-400">
+                    <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+                    <span>Gemini</span>
+                </div>
+                
+                <!-- Pending count badge -->
+                <div id="pending-badge" class="hidden items-center gap-1 text-sm text-amber-400 bg-amber-900/30 px-2 py-1 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span id="pending-count">0</span> pending
+                </div>
+                
+                <!-- Actions -->
+                <button onclick="exportNotes()" class="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition">
+                    Export
+                </button>
+                <button onclick="clearAll()" class="px-3 py-1.5 text-sm bg-red-900/50 hover:bg-red-900 rounded-lg transition">
+                    Clear
+                </button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="pt-20 flex h-screen">
+        
+        <!-- Left Pane: The Stream (Ephemeral) -->
+        <div class="w-1/3 border-r border-gray-800/50 flex flex-col bg-[#0d0d14]">
+            <div class="p-6 border-b border-gray-800/50">
+                <h2 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Live Stream</h2>
+                <p class="text-xs text-gray-600">What's being said right now</p>
+            </div>
+            
+            <!-- Transcript Display -->
+            <div id="transcript-container" class="flex-1 p-6 overflow-y-auto space-y-3">
+                <p class="text-gray-600 text-sm italic">Waiting for input...</p>
+            </div>
+            
+            <!-- Pending Updates Section -->
+            <div id="pending-section" class="hidden border-t border-amber-900/50 bg-amber-950/20">
+                <div class="p-4">
+                    <h3 class="text-xs font-medium text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Pending Updates
+                    </h3>
+                    <div id="pending-list" class="space-y-3 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+            
+            <!-- Input Section -->
+            <div class="p-6 border-t border-gray-800/50 space-y-4">
+                <!-- Text Input (Simulation) -->
+                <div>
+                    <label class="text-xs text-gray-500 mb-2 block">Simulate Voice Input</label>
+                    <input 
+                        type="text" 
+                        id="text-input"
+                        placeholder="Type and press Enter..."
+                        class="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"
+                    >
+                </div>
+                
+                <!-- Voice Recording -->
+                <div>
+                    <label class="text-xs text-gray-500 mb-2 block">Or use your voice</label>
+                    <button 
+                        id="record-btn"
+                        onclick="toggleRecording()"
+                        class="w-full py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition flex items-center justify-center gap-2 font-medium"
+                    >
+                        <svg id="mic-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        <span id="record-text">Start Recording</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Pane: The Markdown File (Single Source of Truth) -->
+        <div class="w-2/3 flex flex-col bg-[#0a0a0f]">
+            <div class="p-6 border-b border-gray-800/50 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">notes.md</h2>
+                    <p class="text-xs text-gray-600">Single source of truth</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleView()" id="view-toggle" class="px-3 py-1 text-xs bg-gray-800 hover:bg-gray-700 rounded transition">
+                        Show Raw
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Rendered Markdown View -->
+            <div id="rendered-view" class="flex-1 p-8 overflow-y-auto">
+                <div class="max-w-2xl mx-auto markdown-content" id="markdown-content">
+                    <p class="text-gray-600 italic">Loading notes...</p>
+                </div>
+            </div>
+            
+            <!-- Raw Markdown View (hidden by default) -->
+            <div id="raw-view" class="flex-1 overflow-y-auto hidden">
+                <div class="p-4 font-mono text-sm">
+                    <div id="raw-content" class="whitespace-pre-wrap text-gray-300"></div>
+                </div>
+            </div>
+        </div>
+        
+    </main>
+    
+    <script>
+        // --- STATE ---
+        let markdownContent = '';
+        let pendingUpdates = [];
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let showRawView = false;
+        let changedLines = [];
+        
+        // --- DOM ELEMENTS ---
+        const textInput = document.getElementById('text-input');
+        const transcriptContainer = document.getElementById('transcript-container');
+        const markdownContentEl = document.getElementById('markdown-content');
+        const rawContentEl = document.getElementById('raw-content');
+        const renderedView = document.getElementById('rendered-view');
+        const rawView = document.getElementById('raw-view');
+        const pendingSection = document.getElementById('pending-section');
+        const pendingList = document.getElementById('pending-list');
+        const pendingBadge = document.getElementById('pending-badge');
+        const pendingCountEl = document.getElementById('pending-count');
+        const recordBtn = document.getElementById('record-btn');
+        const recordText = document.getElementById('record-text');
+        const micIcon = document.getElementById('mic-icon');
+        const viewToggle = document.getElementById('view-toggle');
+        
+        // --- INITIALIZATION ---
+        async function init() {
+            // Check API status
+            try {
+                const health = await fetch('/health').then(r => r.json());
+                
+                if (health.groq_available) {
+                    document.querySelector('#status-groq span:first-child').classList.replace('bg-gray-600', 'bg-green-500');
+                }
+                if (health.gemini_available) {
+                    document.querySelector('#status-gemini span:first-child').classList.replace('bg-gray-600', 'bg-green-500');
+                }
+            } catch (e) {
+                console.error('Health check failed:', e);
+            }
+            
+            // Load initial state via REST first (more reliable)
+            await loadInitialState();
+            
+            // Then connect to SSE for updates
+            connectSSE();
+        }
+        
+        async function loadInitialState() {
+            try {
+                const data = await fetch('/api/notes').then(r => r.json());
+                markdownContent = data.content || '# Latent Loop Notes\n';
+                pendingUpdates = data.pending_updates || [];
+                renderMarkdown();
+                renderPending();
+                
+                const transcriptData = await fetch('/api/transcript').then(r => r.json());
+                renderTranscript(transcriptData.transcript || []);
+            } catch (e) {
+                console.error('Failed to load initial state:', e);
+                markdownContent = '# Latent Loop Notes\n\n*Your recursive notes will appear here.*';
+                renderMarkdown();
+            }
+        }
+        
+        // --- SSE CONNECTION ---
+        let evtSource = null;
+        
+        function connectSSE() {
+            if (evtSource) {
+                evtSource.close();
+            }
+            
+            evtSource = new EventSource('/api/stream');
+            
+            evtSource.onopen = () => {
+                console.log('SSE connected');
+            };
+            
+            evtSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'init') {
+                        markdownContent = data.content;
+                        pendingUpdates = data.pending || [];
+                        renderMarkdown();
+                        renderPending();
+                        renderTranscript(data.transcript);
+                    } else if (data.type === 'heartbeat') {
+                        // Ignore
+                    } else if (data.type === 'file_updated') {
+                        const oldContent = markdownContent;
+                        markdownContent = data.content;
+                        renderMarkdown(data.change_info);
+                        
+                        // Scroll to changed section if updating
+                        if (data.section) {
+                            scrollToSection(data.section);
+                        }
+                    } else if (data.type === 'pending_update') {
+                        pendingUpdates.push(data.pending);
+                        renderPending();
+                    } else if (data.type === 'pending_resolved') {
+                        pendingUpdates = pendingUpdates.filter(p => p.id !== data.pending_id);
+                        renderPending();
+                    }
+                } catch (e) {
+                    console.error('SSE parse error:', e);
+                }
+            };
+            
+            evtSource.onerror = (e) => {
+                console.log('SSE error, will reconnect...', e);
+                evtSource.close();
+                setTimeout(connectSSE, 3000);
+            };
+        }
+        
+        // --- TEXT INPUT HANDLER ---
+        textInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter' && textInput.value.trim()) {
+                const text = textInput.value.trim();
+                textInput.value = '';
+                textInput.disabled = true;
+                
+                const transcriptId = addTranscriptItem(text, 'processing');
+                
+                try {
+                    const response = await fetch('/api/process', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'pending') {
+                        updateTranscriptItem(transcriptId, text, 'pending', result.reason);
+                    } else if (result.status === 'success') {
+                        updateTranscriptItem(transcriptId, text, 'success', result.action);
+                    } else if (result.error) {
+                        updateTranscriptItem(transcriptId, text, 'error', result.error);
+                    } else {
+                        updateTranscriptItem(transcriptId, text, 'success', 'processed');
+                    }
+                } catch (err) {
+                    console.error('Processing error:', err);
+                    updateTranscriptItem(transcriptId, text, 'error', 'Failed to process');
+                }
+                
+                textInput.disabled = false;
+                textInput.focus();
+            }
+        });
+        
+        // --- VOICE RECORDING ---
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await sendAudio(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                
+                recordBtn.classList.add('bg-red-600');
+                recordBtn.classList.remove('from-blue-600', 'to-purple-600');
+                recordText.textContent = 'Stop Recording';
+                micIcon.classList.add('recording-indicator');
+                
+            } catch (err) {
+                console.error('Microphone access error:', err);
+                alert('Could not access microphone.');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                
+                recordBtn.classList.remove('bg-red-600');
+                recordBtn.classList.add('from-blue-600', 'to-purple-600');
+                recordText.textContent = 'Start Recording';
+                micIcon.classList.remove('recording-indicator');
+            }
+        }
+        
+        async function sendAudio(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+            
+            const transcriptId = 'transcript-' + Date.now();
+            addTranscriptItem('🎤 Processing audio...', 'processing', transcriptId);
+            
+            try {
+                const response = await fetch('/api/audio', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.transcription) {
+                    // Update the transcript item with actual text
+                    updateTranscriptItem(transcriptId, result.transcription, 'success', result.action || 'processed');
+                } else if (result.error) {
+                    updateTranscriptItem(transcriptId, result.error, 'error', 'failed');
+                }
+            } catch (err) {
+                console.error('Audio upload error:', err);
+                updateTranscriptItem(transcriptId, 'Failed to process audio', 'error', 'error');
+            }
+        }
+        
+        // --- RENDERING ---
+        function renderMarkdown(changeInfo = null) {
+            // Render with marked
+            const html = marked.parse(markdownContent);
+            markdownContentEl.innerHTML = html;
+            rawContentEl.textContent = markdownContent;
+            
+            // Highlight changed lines if provided
+            if (changeInfo && (changeInfo.changed_lines?.length || changeInfo.added_lines?.length)) {
+                highlightChangedLines(changeInfo);
+            }
+        }
+        
+        function highlightChangedLines(changeInfo) {
+            const allLines = [...(changeInfo.changed_lines || []), ...(changeInfo.added_lines || [])];
+            
+            // For now, highlight the whole section that was updated
+            if (changeInfo.target_section) {
+                const headers = markdownContentEl.querySelectorAll('h2, h3');
+                headers.forEach(h => {
+                    if (h.textContent.includes(changeInfo.target_section)) {
+                        h.parentElement?.classList.add('section-updated');
+                        setTimeout(() => h.parentElement?.classList.remove('section-updated'), 2000);
+                    }
+                });
+            }
+        }
+        
+        function scrollToSection(sectionName) {
+            const headers = markdownContentEl.querySelectorAll('h2, h3');
+            headers.forEach(h => {
+                if (h.textContent.toLowerCase().includes(sectionName.toLowerCase())) {
+                    h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        }
+        
+        function renderTranscript(transcript) {
+            if (!transcript || transcript.length === 0) {
+                transcriptContainer.innerHTML = '<p class="text-gray-600 text-sm italic">Waiting for input...</p>';
+                return;
+            }
+            
+            transcriptContainer.innerHTML = transcript.map(t => `
+                <div class="transcript-item text-gray-400 text-sm py-2 border-b border-gray-800/50">
+                    <p>"${t.text}"</p>
+                    <span class="text-xs text-gray-600">${new Date(t.timestamp).toLocaleTimeString()}</span>
+                </div>
+            `).join('');
+            
+            transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        }
+        
+        function addTranscriptItem(text, status = '', itemId = null) {
+            const id = itemId || 'transcript-' + Date.now();
+            const item = document.createElement('div');
+            item.className = 'transcript-item text-gray-400 text-sm py-2 border-b border-gray-800/50';
+            item.id = id;
+            
+            let statusBadge = '';
+            if (status === 'processing') {
+                statusBadge = '<span class="status-badge ml-2 text-xs text-blue-400 animate-pulse">processing...</span>';
+            }
+            
+            item.innerHTML = `
+                <p class="transcript-text">"${text}"</p>
+                ${statusBadge}
+                <span class="text-xs text-gray-600">${new Date().toLocaleTimeString()}</span>
+            `;
+            
+            const waiting = transcriptContainer.querySelector('.italic');
+            if (waiting) waiting.remove();
+            
+            transcriptContainer.appendChild(item);
+            transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+            
+            return id;
+        }
+        
+        function updateTranscriptItem(itemId, text, status, message) {
+            const item = document.getElementById(itemId);
+            if (!item) return;
+            
+            // Update text
+            const textEl = item.querySelector('.transcript-text');
+            if (textEl) {
+                textEl.innerHTML = `"${text}"`;
+            }
+            
+            // Update or add status badge
+            let badge = item.querySelector('.status-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'status-badge ml-2 text-xs';
+                const timeEl = item.querySelector('.text-gray-600');
+                if (timeEl) {
+                    item.insertBefore(badge, timeEl);
+                } else {
+                    item.appendChild(badge);
+                }
+            }
+            
+            badge.classList.remove('animate-pulse', 'text-blue-400', 'text-green-400', 'text-amber-400', 'text-red-400');
+            
+            if (status === 'success') {
+                badge.className = 'status-badge ml-2 text-xs text-green-400';
+                badge.textContent = `✓ ${message}`;
+            } else if (status === 'pending') {
+                badge.className = 'status-badge ml-2 text-xs text-amber-400';
+                badge.textContent = `⚠ ${message}`;
+            } else if (status === 'error') {
+                badge.className = 'status-badge ml-2 text-xs text-red-400';
+                badge.textContent = `✗ ${message}`;
+            } else {
+                badge.className = 'status-badge ml-2 text-xs text-gray-400';
+                badge.textContent = message;
+            }
+        }
+        
+        function updateTranscriptStatus(status, message) {
+            // Find the most recent transcript item with a processing badge
+            const items = transcriptContainer.querySelectorAll('.transcript-item');
+            if (items.length === 0) return;
+            
+            const latest = items[items.length - 1];
+            const badge = latest.querySelector('.status-badge');
+            
+            if (badge) {
+                badge.classList.remove('animate-pulse', 'text-blue-400');
+                
+                if (status === 'success') {
+                    badge.className = 'status-badge ml-2 text-xs text-green-400';
+                    badge.textContent = `✓ ${message}`;
+                } else if (status === 'pending') {
+                    badge.className = 'status-badge ml-2 text-xs text-amber-400';
+                    badge.textContent = `⚠ ${message}`;
+                } else if (status === 'error') {
+                    badge.className = 'status-badge ml-2 text-xs text-red-400';
+                    badge.textContent = `✗ ${message}`;
+                }
+            }
+        }
+        
+        function updateTranscriptText(text) {
+            const items = transcriptContainer.querySelectorAll('.transcript-item');
+            if (items.length === 0) return;
+            
+            const latest = items[items.length - 1];
+            const textEl = latest.querySelector('.transcript-text');
+            if (textEl) {
+                textEl.innerHTML = `"${text}"`;
+            }
+        }
+        
+        function renderPending() {
+            if (pendingUpdates.length === 0) {
+                pendingSection.classList.add('hidden');
+                pendingBadge.classList.add('hidden');
+                pendingBadge.classList.remove('flex');
+                return;
+            }
+            
+            pendingSection.classList.remove('hidden');
+            pendingBadge.classList.remove('hidden');
+            pendingBadge.classList.add('flex');
+            pendingCountEl.textContent = pendingUpdates.length;
+            
+            pendingList.innerHTML = pendingUpdates.map(p => `
+                <div class="pending-card bg-gray-900 rounded-lg p-3 border border-amber-900/50">
+                    <p class="text-sm text-gray-300 mb-2">"${p.transcript}"</p>
+                    <p class="text-xs text-amber-400 mb-2">${p.reason}</p>
+                    ${p.matched_section ? `<p class="text-xs text-gray-500 mb-2">Matched: ${p.matched_section} (${(p.similarity * 100).toFixed(0)}%)</p>` : ''}
+                    <div class="flex gap-2">
+                        <button onclick="resolvePending('${p.id}', 'approve')" class="px-2 py-1 text-xs bg-green-900/50 hover:bg-green-900 rounded transition">
+                            ✓ ${p.matched_section ? 'Update Section' : 'Create New'}
+                        </button>
+                        ${p.matched_section ? `
+                            <button onclick="resolvePending('${p.id}', 'create_new')" class="px-2 py-1 text-xs bg-blue-900/50 hover:bg-blue-900 rounded transition">
+                                + New Section
+                            </button>
+                        ` : ''}
+                        <button onclick="resolvePending('${p.id}', 'reject')" class="px-2 py-1 text-xs bg-red-900/50 hover:bg-red-900 rounded transition">
+                            ✗ Reject
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function resolvePending(pendingId, action) {
+            try {
+                await fetch(`/api/pending/${pendingId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+            } catch (err) {
+                console.error('Error resolving pending:', err);
+            }
+        }
+        
+        // --- VIEW TOGGLE ---
+        function toggleView() {
+            showRawView = !showRawView;
+            
+            if (showRawView) {
+                renderedView.classList.add('hidden');
+                rawView.classList.remove('hidden');
+                viewToggle.textContent = 'Show Rendered';
+            } else {
+                renderedView.classList.remove('hidden');
+                rawView.classList.add('hidden');
+                viewToggle.textContent = 'Show Raw';
+            }
+        }
+        
+        // --- ACTIONS ---
+        async function clearAll() {
+            if (confirm('Are you sure you want to clear all notes?')) {
+                await fetch('/api/clear', { method: 'POST' });
+            }
+        }
+        
+        function exportNotes() {
+            window.location.href = '/api/export';
+        }
+        
+        // --- START ---
+        init();
+    </script>
+</body>
+</html>

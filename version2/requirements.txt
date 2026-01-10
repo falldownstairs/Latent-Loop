@@ -1,0 +1,25 @@
+# Latent Loop v2 - Dependencies
+# JourneyHacks 2026
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# AI/ML - Transcription (Groq Whisper)
+groq>=0.4.0
+
+# AI/ML - Synthesis (Google Gemini)
+google-generativeai>=0.3.0
+
+# Vector Database
+chromadb>=0.4.0
+
+# Embeddings (Local)
+fastembed>=0.2.0
+
+# Utilities
+colorama>=0.4.6
+numpy>=1.24.0
