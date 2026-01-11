@@ -1,8 +1,0 @@
-flask
-flask-cors
-groq
-python-dotenv
-colorama
-pyaudio
-webrtcvad
-google-generativeai
